@@ -114,6 +114,16 @@ if IM_HOME and os.path.isdir(IM_HOME):
 
 logging.info("Environment variables set for binaries.")
 
+# Linux ImageMagick security policy fix for MoviePy TextClip
+if platform.system() != "Windows":
+    try:
+        import subprocess
+        for policy_file in ["/etc/ImageMagick-6/policy.xml", "/etc/ImageMagick-7/policy.xml"]:
+            if os.path.isfile(policy_file):
+                subprocess.run(["sudo", "sed", "-i", "/@\\*/d", policy_file], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
 import requests as http_requests
 from pydub import AudioSegment
 AudioSegment.converter = FFMPEG_EXE
