@@ -70,8 +70,19 @@ AUDIO_DIR = os.path.join(OUT_DIR, "audio")
 VIDEO_DIR = os.path.join(OUT_DIR, "video")
 
 FONT_DIR = os.path.join(EXEC_DIR, "fonts")
-FONT_PATH = os.path.join(FONT_DIR, "DUBAI-MEDIUM.TTF")
-FONT_PATH_ARABIC = os.path.join(FONT_DIR, "DUBAI-BOLD.TTF")
+# Beautiful Quranic fonts: Amiri Quran, Amiri Bold, Dubai
+if os.path.isfile(os.path.join(FONT_DIR, "AmiriQuran-Regular.ttf")):
+    FONT_PATH_ARABIC = os.path.join(FONT_DIR, "AmiriQuran-Regular.ttf")
+elif os.path.isfile(os.path.join(FONT_DIR, "Amiri-Bold.ttf")):
+    FONT_PATH_ARABIC = os.path.join(FONT_DIR, "Amiri-Bold.ttf")
+elif os.path.isfile(os.path.join(FONT_DIR, "DUBAI-BOLD.TTF")):
+    FONT_PATH_ARABIC = os.path.join(FONT_DIR, "DUBAI-BOLD.TTF")
+elif os.path.isfile(os.path.join(BUNDLE_DIR, "font.ttf")):
+    FONT_PATH_ARABIC = os.path.join(BUNDLE_DIR, "font.ttf")
+else:
+    FONT_PATH_ARABIC = "Amiri"
+
+FONT_PATH = FONT_PATH_ARABIC
 FONT_PATH_ENGLISH = os.path.join(FONT_DIR, "DUBAI-REGULAR.TTF")
 
 # Create folders on startup
@@ -266,11 +277,32 @@ def get_ayah_text(surah, ayah):
         logging.error(f"Failed to fetch ayah text: {e}")
         raise
 
+try:
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+    HAS_BIDI = True
+except ImportError:
+    HAS_BIDI = False
+
+def format_arabic_line(text):
+    if not HAS_BIDI:
+        return text
+    try:
+        configuration = {
+            'delete_harakat': False,
+            'support_ligatures': True
+        }
+        reshaper = arabic_reshaper.ArabicReshaper(configuration=configuration)
+        return get_display(reshaper.reshape(text))
+    except Exception as e:
+        logging.warning(f"Error formatting arabic: {e}")
+        return text
+
 def wrap_text(text, per_line):
-    """Wrap text into multiple lines based on word count per line"""
+    """Wrap text into multiple lines and format each line with reshaping and bidi for correct Arabic display"""
     words = text.split()
     lines = [' '.join(words[i:i + per_line]) for i in range(0, len(words), per_line)]
-    return '\n'.join(lines)
+    return '\n'.join([format_arabic_line(line) for line in lines])
 
 def create_text_clip(arabic, duration, video_height=1080):
     """
@@ -281,34 +313,34 @@ def create_text_clip(arabic, duration, video_height=1080):
     words = arabic.split()
     word_count = len(words)
     
-    # Dynamic settings based on text length
+    # Dynamic settings based on text length for 1080x1920 reels
     if word_count > 60:
-        fontsize = 16
-        per_line = 10
-    elif word_count > 40:
-        fontsize = 20
-        per_line = 9
-    elif word_count > 25:
-        fontsize = 25
-        per_line = 8
-    elif word_count > 15:
-        fontsize = 30
+        fontsize = 28
         per_line = 7
-    else:
-        fontsize = 35
+    elif word_count > 40:
+        fontsize = 34
         per_line = 6
+    elif word_count > 25:
+        fontsize = 42
+        per_line = 5
+    elif word_count > 15:
+        fontsize = 48
+        per_line = 4
+    else:
+        fontsize = 56
+        per_line = 4
         
     wrapped_text = wrap_text(arabic, per_line)
     
-    # Create the text clip centered on screen
-    # Use TextClip with the correct bundled font path
+    # Create the text clip centered on screen with high contrast and readable styling
     ar_clip = TextClip(
         wrapped_text, 
         font=FONT_PATH_ARABIC, 
         fontsize=fontsize, 
-        color='white', 
-        method='caption', 
-        size=(900, None), # Allow height to expand as needed, constrain width
+        color='#FFF8E7',
+        stroke_color='black',
+        stroke_width=2,
+        method='label',
         align='center',
     ).set_duration(duration).set_position('center')
     
