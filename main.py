@@ -11,6 +11,7 @@ import json
 import datetime
 import logging
 import traceback
+import platform
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 
@@ -494,12 +495,52 @@ def serve_output(filename):
 def serve_final_video():
     return send_from_directory(EXEC_DIR, 'final_video.mp4')
 
+def start_public_tunnel(port=5000):
+    """Automatically launches Cloudflare Tunnel on Linux/Codespaces for instant 100% public access without 401 errors"""
+    if platform.system() == "Windows":
+        return
+    def _run():
+        try:
+            cf_bin = os.path.join(EXEC_DIR, "cloudflared")
+            if not os.path.isfile(cf_bin):
+                print("⏳ جاري تجهيز رابط سحابي مباشر مفتوح...")
+                import urllib.request
+                urllib.request.urlretrieve(
+                    "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",
+                    cf_bin
+                )
+                os.chmod(cf_bin, 0o755)
+            
+            import subprocess, re
+            proc = subprocess.Popen(
+                [cf_bin, "tunnel", "--url", f"http://127.0.0.1:{port}"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            for line in proc.stderr:
+                match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
+                if match:
+                    url = match.group(0)
+                    print("\n" + "=" * 65)
+                    print("  🌟 رابط الأداة السحابي المباشر (شغال 100% بدون أي حظر):")
+                    print(f"  👉 {url}")
+                    print("=" * 65 + "\n")
+                    break
+        except Exception as e:
+            logging.warning(f"Tunnel start notice: {e}")
+            
+    threading.Thread(target=_run, daemon=True).start()
+
 if __name__ == '__main__':
     logging.info('Server Starting...')
     print('=' * 50)
     print('  One-Click Quran Reels Generator')
     print('  Running in Portable Mode')
     print('=' * 50)
+    
+    # Start Cloudflare public tunnel on cloud environments
+    start_public_tunnel(5000)
     
     # Open browser automatically if available
     try:
