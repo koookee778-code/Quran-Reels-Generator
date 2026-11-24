@@ -1,5 +1,9 @@
 # 📖 Quran Reels Generator | أداة عمل ريلز القرآن الكريم
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/koookee778-code/Quran-Reels-Generator)
+
+> 🚀 **تجربة الأداة سحابياً دون أي استهلاك لجهازك:** اضغط على زر `Open in GitHub Codespaces` أعلاه لتشغيل الأداة مباشرة في السحابة والحصول على رابط فوري!
+
 [English](#english) | [العربية](#arabic)
 
 ---

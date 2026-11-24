@@ -1,0 +1,13 @@
+{
+  "name": "Quran Reels Generator",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y ffmpeg imagemagick && sudo sed -i 's/<policy domain=\"path\" rights=\"none\" pattern=\"@\\*\" \\/>/<policy domain=\"path\" rights=\"read|write\" pattern=\"@*\" \\/>/' /etc/ImageMagick-6/policy.xml || true && pip install -r requirements.txt",
+  "postStartCommand": "python main.py",
+  "forwardPorts": [5000],
+  "portsAttributes": {
+    "5000": {
+      "label": "Quran Reels Generator UI",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}

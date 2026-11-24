@@ -43,10 +43,24 @@ logging.info("--- Starting Quran Reels Generator ---")
 logging.info(f"Execution Directory: {EXEC_DIR}")
 logging.info(f"Bundled Directory: {BUNDLE_DIR}")
 
+import shutil
+
 # --- Step: Define Paths ---
-FFMPEG_EXE = os.path.join(BUNDLE_DIR, "bin", "ffmpeg", "ffmpeg.exe")
-IM_MAGICK_EXE = os.path.join(BUNDLE_DIR, "bin", "imagemagick", "magick.exe")
-IM_HOME = os.path.join(BUNDLE_DIR, "bin", "imagemagick")
+win_ffmpeg = os.path.join(BUNDLE_DIR, "bin", "ffmpeg", "ffmpeg.exe")
+win_magick = os.path.join(BUNDLE_DIR, "bin", "imagemagick", "magick.exe")
+win_im_home = os.path.join(BUNDLE_DIR, "bin", "imagemagick")
+
+if os.path.isfile(win_ffmpeg):
+    FFMPEG_EXE = win_ffmpeg
+else:
+    FFMPEG_EXE = shutil.which("ffmpeg") or "ffmpeg"
+
+if os.path.isfile(win_magick):
+    IM_MAGICK_EXE = win_magick
+    IM_HOME = win_im_home
+else:
+    IM_MAGICK_EXE = shutil.which("magick") or shutil.which("convert") or "convert"
+    IM_HOME = os.path.dirname(IM_MAGICK_EXE) if os.path.isabs(IM_MAGICK_EXE) else ""
 
 VISION_DIR = os.path.join(BUNDLE_DIR, "vision")
 UI_PATH = os.path.join(BUNDLE_DIR, "UI.html")
@@ -70,8 +84,10 @@ except Exception as e:
     logging.error(f"Failed to create directories: {e}")
 
 # Validate Bundled Requirements
-if not os.path.isfile(FFMPEG_EXE): logging.error(f"Missing ffmpeg.exe at {FFMPEG_EXE}")
-if not os.path.isfile(IM_MAGICK_EXE): logging.error(f"Missing magick.exe at {IM_MAGICK_EXE}")
+if not os.path.isfile(FFMPEG_EXE) and not shutil.which("ffmpeg"):
+    logging.error(f"Missing ffmpeg at {FFMPEG_EXE}")
+if not os.path.isfile(IM_MAGICK_EXE) and not (shutil.which("magick") or shutil.which("convert")):
+    logging.error(f"Missing magick at {IM_MAGICK_EXE}")
 if not os.path.isdir(VISION_DIR): logging.error(f"Missing vision folder at {VISION_DIR}")
 if not os.path.isfile(UI_PATH): logging.error(f"Missing UI.html at {UI_PATH}")
 
@@ -81,24 +97,22 @@ os.environ["IMAGEIO_FFMPEG_EXE"] = FFMPEG_EXE
 
 # ImageMagick Environment Setup
 os.environ["IMAGEMAGICK_BINARY"] = IM_MAGICK_EXE
-os.environ["MAGICK_HOME"] = IM_HOME
-os.environ["MAGICK_CONFIGURE_PATH"] = os.path.join(IM_HOME, "config")
-# Pre-flight check: if config dir missing, fallback to root or modules
-if not os.path.exists(os.environ["MAGICK_CONFIGURE_PATH"]):
-    os.environ["MAGICK_CONFIGURE_PATH"] = IM_HOME # Portable versions often have xmls in root
+if IM_HOME and os.path.isdir(IM_HOME):
+    os.environ["MAGICK_HOME"] = IM_HOME
+    magick_cfg = os.path.join(IM_HOME, "config")
+    os.environ["MAGICK_CONFIGURE_PATH"] = magick_cfg if os.path.exists(magick_cfg) else IM_HOME
+    coder_path = os.path.join(IM_HOME, "modules", "coders")
+    if os.path.exists(coder_path):
+        os.environ["MAGICK_CODER_MODULE_PATH"] = coder_path
+    elif os.path.exists(os.path.join(IM_HOME, "modules")):
+        os.environ["MAGICK_CODER_MODULE_PATH"] = os.path.join(IM_HOME, "modules")
 
-os.environ["MAGICK_CODER_MODULE_PATH"] = os.path.join(IM_HOME, "modules", "coders") # Typical path
-if not os.path.exists(os.environ["MAGICK_CODER_MODULE_PATH"]):
-    os.environ["MAGICK_CODER_MODULE_PATH"] = os.path.join(IM_HOME, "modules")
+    # Prepend PATH for DLL discovery
+    path_entries = [p for p in [os.path.dirname(FFMPEG_EXE), IM_HOME] if p and os.path.isdir(p)]
+    if path_entries:
+        os.environ["PATH"] = os.pathsep.join(path_entries + [os.environ.get("PATH", "")])
 
-# Prepend PATH for DLL discovery
-os.environ["PATH"] = os.pathsep.join([
-    os.path.dirname(FFMPEG_EXE),
-    IM_HOME,
-    os.environ.get("PATH", "")
-])
-
-logging.info("Environment variables set for portable binaries.")
+logging.info("Environment variables set for binaries.")
 
 import requests as http_requests
 from pydub import AudioSegment
@@ -445,9 +459,12 @@ if __name__ == '__main__':
     print('  Running in Portable Mode')
     print('=' * 50)
     
-    # Open browser automatically
-    webbrowser.open('http://127.0.0.1:5000')
+    # Open browser automatically if available
+    try:
+        webbrowser.open('http://localhost:5000')
+    except Exception:
+        pass
     
     # Start Flask server
-    # Important: host='127.0.0.1' as requested
-    app.run(host='127.0.0.1', port=5000, debug=False, threaded=True)
+    # host='0.0.0.0' allows access from local machine and cloud containers/codespaces
+    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
